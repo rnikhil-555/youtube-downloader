@@ -1,4 +1,3 @@
-// app/api/validate-url/route.ts
 import { NextResponse } from "next/server";
 import ytdl from "ytdl-core";
 

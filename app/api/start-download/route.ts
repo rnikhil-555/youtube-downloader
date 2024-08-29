@@ -1,40 +1,36 @@
-// app/api/start-download/route.ts
-import { NextResponse } from "next/server";
 import ytdl from "ytdl-core";
+import ffmpeg from "fluent-ffmpeg";
+import { NextResponse } from "next/server";
+import { PassThrough } from "stream";
 
 export async function POST(request: Request) {
-	const { url, quality } = await request.json();
+	const { url, format } = await request.json();
 
 	try {
-		console.log(
-			`Received download request for URL: ${url}, Quality: ${quality}`
-		);
+		const stream = ytdl(url, {
+			filter: (format) => format.container === "mp4",
+			requestOptions: {
+				headers: {
+					"User-Agent":
+						"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+				},
+			},
+		});
 
-		// Get video info
-		const info = await ytdl.getInfo(url);
-		const format = ytdl.chooseFormat(info.formats, { quality: quality });
+		const outputStream = new PassThrough();
 
-		// Set headers for file download
+		ffmpeg(stream).format(format).pipe(outputStream, { end: true });
+
 		const headers = new Headers();
 		headers.set(
 			"Content-Disposition",
-			`attachment; filename="${info.videoDetails.title}.mp4"`
+			`attachment; filename="video.${format}"`
 		);
-		headers.set("Content-Type", "video/mp4");
+		headers.set("Content-Type", "application/octet-stream");
 
-		// Create a ReadableStream from the video
-		const stream = ytdl(url, { format: format });
-
-		// Return the stream as the response
-		return new NextResponse(stream as any, { headers });
+		return new NextResponse(outputStream, { headers });
 	} catch (error) {
-		console.error("Failed to start download:", error);
-		return NextResponse.json(
-			{
-				error:
-					"Failed to start download. The video might be restricted or unavailable.",
-			},
-			{ status: 500 }
-		);
+		console.error("Download error:", error);
+		return NextResponse.json({ error: "Download failed" }, { status: 500 });
 	}
 }
