@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	experimental: {
-		serverComponentsExternalPackages: ["ytdl-core"],
+		serverComponentsExternalPackages: ["youtube-dl-exec", "ytdl-core"],
 	},
 };
 
