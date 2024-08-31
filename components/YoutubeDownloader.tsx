@@ -39,12 +39,14 @@ const YouTubeDownloader: React.FC = () => {
 					.map((format: any) => ({
 						name: format.qualityLabel || "Audio only",
 						size: format.size,
+						url: format.url,
 					})),
 				videoFormats: fetchedData.formats
 					.filter((format: any) => format.type === "video")
 					.map((format: any) => ({
 						quality: format.qualityLabel,
 						size: format.size,
+						url: format.url,
 					})),
 			};
 
@@ -58,22 +60,22 @@ const YouTubeDownloader: React.FC = () => {
 		}
 	};
 
-	const handleFormatChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		const selectedItag = e.target.value;
-		if (videoData) {
-			const selectedFormat = videoData.videoFormats.find(
-				(format) => format.quality === selectedItag
-			);
-			if (selectedFormat) {
-				setDownloadLink(selectedFormat.size); // Assuming `size` contains the download URL; replace with the actual property that contains the URL
-			} else {
-				setDownloadLink("");
-			}
-		}
-	};
+	// const handleFormatChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+	// 	const selectedItag = e.target.value;
+	// 	if (videoData) {
+	// 		const selectedFormat = videoData.videoFormats.find(
+	// 			(format) => format.quality === selectedItag
+	// 		);
+	// 		if (selectedFormat) {
+	// 			setDownloadLink(selectedFormat.size); // Assuming `size` contains the download URL; replace with the actual property that contains the URL
+	// 		} else {
+	// 			setDownloadLink("");
+	// 		}
+	// 	}
+	// };
 
 	return (
-		<div className="w-full h-full mx-auto p-6 bg-white">
+		<div className="w-full h-full mx-auto p-0 md:p-6 bg-[#0c0c0c]">
 			<h1 className="text-3xl font-bold mb-6 text-center text-blue-600">
 				YouTube Downloader
 			</h1>
@@ -95,18 +97,6 @@ const YouTubeDownloader: React.FC = () => {
 			{videoData && (
 				<div className="mt-4">
 					<VideoCard {...videoData} />
-				</div>
-			)}
-			{downloadLink && (
-				<div className="mt-4">
-					<a
-						href={downloadLink}
-						download={`${videoData?.title}.${downloadLink.split(".").pop()}`}
-						target="_blank"
-						className="w-full block text-center bg-indigo-500 text-white p-2 rounded hover:bg-indigo-600 transition duration-200"
-					>
-						Download File
-					</a>
 				</div>
 			)}
 			{error && (

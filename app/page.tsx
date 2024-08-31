@@ -13,14 +13,16 @@ export default function Home() {
 						Youtube To Mp4
 					</a>
 					<div className="relative">
-						<button className="flex items-center space-x-2">
+						<button className="flex items-center space-x-2 text-white">
 							<span>English</span>
 							{/* <ChevronDown className="w-4 h-4" /> */}
 						</button>
 					</div>
 				</nav>
 			</header>
-			<YouTubeDownloader />;
+			<div className="px-4">
+				<YouTubeDownloader />;
+			</div>
 		</>
 	);
 }

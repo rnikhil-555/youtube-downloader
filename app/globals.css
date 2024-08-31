@@ -17,7 +17,7 @@
 } */
 
 body {
-	background: white;
+	background: rgb(15, 15, 15);
 }
 
 @layer utilities {

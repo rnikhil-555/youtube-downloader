@@ -1,5 +1,23 @@
 import { NextResponse } from "next/server";
 import ytdl from "youtube-dl-exec";
+function formatDuration(seconds: number): string {
+	const hours = Math.floor(seconds / 3600);
+	const minutes = Math.floor((seconds % 3600) / 60);
+	const remainingSeconds = seconds % 60;
+
+	let formattedDuration = "";
+	if (hours > 0) {
+		formattedDuration += `${hours}hr `;
+	}
+	if (minutes > 0) {
+		formattedDuration += `${minutes}min `;
+	}
+	if (remainingSeconds > 0) {
+		formattedDuration += `${remainingSeconds}s`;
+	}
+
+	return formattedDuration.trim();
+}
 
 export async function POST(request: Request) {
 	const { url } = await request.json();
@@ -39,6 +57,7 @@ export async function POST(request: Request) {
 		return NextResponse.json({
 			title: info.title, // Include the video title
 			thumbnail: info.thumbnail, // Include the video thumbnail URL
+			duration: formatDuration(info.duration),
 			formats,
 		});
 	} catch (error) {
