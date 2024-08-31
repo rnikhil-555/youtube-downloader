@@ -3,6 +3,15 @@ import ytdl from "ytdl-core";
 export async function getVideoInfo(url: string) {
 	try {
 		const info = await ytdl.getInfo(url);
+		console.log(info);
+		console.log({
+			title: info.videoDetails.title,
+			formats: info.formats.map((format) => ({
+				itag: format.itag,
+				qualityLabel: format.qualityLabel,
+				container: format.container,
+			})),
+		});
 		return {
 			title: info.videoDetails.title,
 			formats: info.formats.map((format) => ({

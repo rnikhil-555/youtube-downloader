@@ -6,7 +6,7 @@ import AWS from "aws-sdk";
 
 // Initialize the Wasabi S3 client
 const s3 = new AWS.S3({
-	endpoint: "https://s3.wasabisys.com", // Wasabi's endpoint
+	endpoint: "https://s3.wasabisys.com",
 	accessKeyId: process.env.WASABI_ACCESS_KEY_ID,
 	secretAccessKey: process.env.WASABI_SECRET_ACCESS_KEY,
 	region: process.env.WASABI_REGION,
@@ -18,24 +18,30 @@ function sanitizeFilename(filename: string): string {
 }
 
 export async function POST(request: Request) {
-	const { url, type, quality, title, vId } = await request.json();
+	const { url, itag, title, vId, type, container } = await request.json();
+	const sanitizedTitle = sanitizeFilename(title);
 
-	const sanitizedTitle = sanitizeFilename(title); // Sanitize the title
+	let fileExtension: string;
+	let contentType: string;
 
-	const fileExtension = type === "audio" ? "mp3" : "mp4";
-	const fileName = `${sanitizedTitle}-${quality}.${fileExtension}`;
+	if (type === "audio") {
+		fileExtension = container === "webm" ? "webm" : "mp3";
+		contentType = container === "webm" ? "audio/webm" : "audio/mpeg";
+	} else {
+		fileExtension = "mp4"; // Assuming video is always mp4 for simplicity
+		contentType = "video/mp4";
+	}
+
+	const fileName = `${sanitizedTitle}-${itag}.${fileExtension}`;
 	const outputPath = path.join(process.cwd(), "public", "downloads", fileName);
 
 	const bucketName = process.env.WASABI_BUCKET_NAME!;
 	const s3Key = `${vId}/${fileName}`;
 
-	let format = "";
-
-	if (type === "audio") {
-		format = "bestaudio";
-	} else if (type === "video") {
-		format = `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]`;
-	}
+	let format =
+		type === "audio"
+			? "bestaudio"
+			: `bestvideo[height<=${itag}]+bestaudio/best[height<=${itag}]`;
 
 	try {
 		// Check if the file exists in Wasabi S3
@@ -46,27 +52,17 @@ export async function POST(request: Request) {
 				Key: s3Key,
 				Expires: 60 * 60 * 24, // 1 day expiry
 			});
-
-			// Delete the file from the server
-			if (fs.existsSync(outputPath)) {
-				fs.unlinkSync(outputPath);
-				console.log("Local file deleted:", outputPath);
-			}
-
 			return NextResponse.json({ downloadURL }, { status: 200 });
 		} catch (error: any) {
-			if (error.code !== "NotFound") {
-				throw error;
-			}
+			if (error.code !== "NotFound") throw error;
 
 			// File does not exist in Wasabi S3, proceed with download
 			if (!fs.existsSync(outputPath)) {
 				await ytdl(url, {
 					format,
 					output: outputPath,
-					mergeOutputFormat: "mp4",
+					mergeOutputFormat: type === "video" ? "mp4" : undefined,
 				});
-				console.log("Download successful:", outputPath);
 			}
 
 			// Upload the file to Wasabi S3
@@ -76,28 +72,21 @@ export async function POST(request: Request) {
 					Bucket: bucketName,
 					Key: s3Key,
 					Body: fileBuffer,
-					ContentType: type === "audio" ? "audio/mpeg" : "video/mp4",
+					ContentType: contentType,
 				})
 				.promise();
-			console.log("Upload successful");
 
-			// Get the file download URL
 			const downloadURL = s3.getSignedUrl("getObject", {
 				Bucket: bucketName,
 				Key: s3Key,
 				Expires: 60 * 60 * 24, // 1 day expiry
 			});
 
-			// Delete the file from the server
-			if (fs.existsSync(outputPath)) {
-				fs.unlinkSync(outputPath);
-				console.log("Local file deleted:", outputPath);
-			}
+			if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
 
 			return NextResponse.json({ downloadURL }, { status: 200 });
 		}
 	} catch (error: any) {
-		console.error("Error processing request:", error);
 		return NextResponse.json(
 			{ error: "Download or upload failed", details: error.message },
 			{ status: 500 }

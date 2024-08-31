@@ -1,13 +1,23 @@
 "use client";
 import React, { useState } from "react";
 import axios from "axios";
+import { VideoCard, VideoData } from "./FormatSelector";
+
+interface VideoFormat {
+	itag: string;
+	qualityLabel: string;
+	container: string;
+	size: string;
+	type: string;
+	is60fps: boolean;
+	url: string;
+}
 
 const YouTubeDownloader: React.FC = () => {
-	const [url, setUrl] = useState("");
-	const [videoInfo, setVideoInfo] = useState(null);
-	const [selectedFormat, setSelectedFormat] = useState("");
-	const [downloadLink, setDownloadLink] = useState("");
-	const [error, setError] = useState("");
+	const [url, setUrl] = useState<string>("");
+	const [videoData, setVideoData] = useState<VideoData | null>(null);
+	const [downloadLink, setDownloadLink] = useState<string>("");
+	const [error, setError] = useState<string>("");
 
 	const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setUrl(e.target.value);
@@ -16,39 +26,54 @@ const YouTubeDownloader: React.FC = () => {
 	const validateUrl = async () => {
 		try {
 			const response = await axios.post("/api/validate-url", { url });
-			setVideoInfo(response.data);
+			const fetchedData = response.data;
+
+			// Transform the fetched data into the VideoData format expected by VideoCard
+			const transformedData: VideoData = {
+				imageSrc: fetchedData.thumbnail, // Assuming thumbnailUrl is returned
+				title: fetchedData.title,
+				tags: fetchedData.tags || "", // Assuming tags are returned or set empty string if not
+				duration: fetchedData.duration || "Unknown", // Assuming duration is returned or set to "Unknown" if not
+				audioFormats: fetchedData.formats
+					.filter((format: any) => format.type === "audio")
+					.map((format: any) => ({
+						name: format.qualityLabel || "Audio only",
+						size: format.size,
+					})),
+				videoFormats: fetchedData.formats
+					.filter((format: any) => format.type === "video")
+					.map((format: any) => ({
+						quality: format.qualityLabel,
+						size: format.size,
+					})),
+			};
+
+			setVideoData(transformedData);
 			setError("");
+			setDownloadLink(""); // Clear any previous download link
 		} catch (error) {
 			console.error("Error validating URL:", error);
 			setError("Error validating URL. Please check the URL and try again.");
+			setVideoData(null);
 		}
 	};
 
-	const startDownload = async () => {
-		try {
-			const response = await axios.post(
-				"/api/start-download",
-				{
-					url,
-					format: selectedFormat,
-				},
-				{ responseType: "blob" }
+	const handleFormatChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+		const selectedItag = e.target.value;
+		if (videoData) {
+			const selectedFormat = videoData.videoFormats.find(
+				(format) => format.quality === selectedItag
 			);
-
-			const blob = new Blob([response.data], {
-				type: response.headers["content-type"],
-			});
-			const downloadUrl = window.URL.createObjectURL(blob);
-			setDownloadLink(downloadUrl);
-			setError("");
-		} catch (error) {
-			console.error("Error starting download:", error);
-			setError("Error starting download. Please try again.");
+			if (selectedFormat) {
+				setDownloadLink(selectedFormat.size); // Assuming `size` contains the download URL; replace with the actual property that contains the URL
+			} else {
+				setDownloadLink("");
+			}
 		}
 	};
 
 	return (
-		<div className="max-w-2xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-xl">
+		<div className="w-full h-full mx-auto p-6 bg-white">
 			<h1 className="text-3xl font-bold mb-6 text-center text-blue-600">
 				YouTube Downloader
 			</h1>
@@ -67,32 +92,17 @@ const YouTubeDownloader: React.FC = () => {
 			>
 				Validate URL
 			</button>
-			{videoInfo && (
+			{videoData && (
 				<div className="mt-4">
-					<h2 className="text-xl font-semibold mb-2">{videoInfo.title}</h2>
-					<select
-						value={selectedFormat}
-						onChange={(e) => setSelectedFormat(e.target.value)}
-						className="w-full p-2 border rounded text-black"
-					>
-						<option value="">Select Format</option>
-						<option value="mp4">MP4</option>
-						<option value="mp3">MP3</option>
-					</select>
-					<button
-						onClick={startDownload}
-						disabled={!selectedFormat}
-						className="w-full mt-4 bg-green-500 text-white p-2 rounded hover:bg-green-600 transition duration-200 disabled:bg-gray-300"
-					>
-						Start Download
-					</button>
+					<VideoCard {...videoData} />
 				</div>
 			)}
 			{downloadLink && (
 				<div className="mt-4">
 					<a
 						href={downloadLink}
-						download={`${videoInfo.title}.${selectedFormat}`}
+						download={`${videoData?.title}.${downloadLink.split(".").pop()}`}
+						target="_blank"
 						className="w-full block text-center bg-indigo-500 text-white p-2 rounded hover:bg-indigo-600 transition duration-200"
 					>
 						Download File
