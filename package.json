@@ -7,7 +7,7 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
-		"postinstall": "chmod +x ./bin/yt-dlp_linux"
+		"postinstall": "chmod +x ./bin/yt-dlp && apk add --no-cache libc6-compat || echo 'Running outside of Docker'"
 	},
 	"dependencies": {
 		"aws-sdk": "^2.1687.0",
