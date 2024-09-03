@@ -45,6 +45,8 @@ export async function POST(request: Request) {
 					type: hasVideo ? "video" : "audio", // Determine if it's video or audio
 					is60fps, // Include FPS support information
 					url: format.url, // Include the download URL
+					vcodec: format.vcodec,
+					acodec: format.acodec,
 				};
 			})
 			.filter(
