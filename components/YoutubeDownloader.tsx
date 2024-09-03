@@ -3,20 +3,9 @@ import React, { useState } from "react";
 import axios from "axios";
 import { VideoCard, VideoData } from "./FormatSelector";
 
-interface VideoFormat {
-	itag: string;
-	qualityLabel: string;
-	container: string;
-	size: string;
-	type: string;
-	is60fps: boolean;
-	url: string;
-}
-
 const YouTubeDownloader: React.FC = () => {
 	const [url, setUrl] = useState<string>("");
 	const [videoData, setVideoData] = useState<VideoData | null>(null);
-	const [downloadLink, setDownloadLink] = useState<string>("");
 	const [error, setError] = useState<string>("");
 
 	const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,7 +41,6 @@ const YouTubeDownloader: React.FC = () => {
 
 			setVideoData(transformedData);
 			setError("");
-			setDownloadLink(""); // Clear any previous download link
 		} catch (error) {
 			console.error("Error validating URL:", error);
 			setError("Error validating URL. Please check the URL and try again.");
