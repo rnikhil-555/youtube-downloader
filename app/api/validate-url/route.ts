@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import ytdl from "youtube-dl-exec";
+import ytdl from "ytdl-core";
+
+// Function to format duration from seconds into a readable format
 function formatDuration(seconds: number): string {
 	const hours = Math.floor(seconds / 3600);
 	const minutes = Math.floor((seconds % 3600) / 60);
@@ -19,32 +21,53 @@ function formatDuration(seconds: number): string {
 	return formattedDuration.trim();
 }
 
+// Interface for the format object used in ytdl-core
+interface VideoFormat {
+	itag: number;
+	qualityLabel: string;
+	container: string;
+	size: string;
+	type: string;
+	url: string;
+	vcodec: string;
+	acodec: string;
+}
+
+// Interface for the video info returned by ytdl-core
+interface VideoInfo {
+	title: string;
+	thumbnail: string;
+	duration: number;
+	formats: VideoFormat[];
+}
+
+// Main POST handler for the API route
 export async function POST(request: Request) {
-	const { url } = await request.json();
+	const { url }: { url: string } = await request.json();
 
 	try {
-		// Use `youtube-dl-exec` to fetch video info
-		const info = await ytdl(url, {
-			dumpSingleJson: true, // Dump the video info in JSON format
-			noWarnings: true, // Suppress warnings
-		});
+		// Use ytdl-core to fetch video info
+		const info = await ytdl.getInfo(url);
 
 		// Extract and filter formats
 		const formats = info.formats
 			.map((format) => {
-				const hasVideo = format.vcodec !== "none"; // Check if format has video
+				const hasVideo = format.hasVideo; // Check if format has video
 				const is60fps = format.fps === 60; // Check for 60 FPS support
 
 				return {
-					itag: format.format_id, // Use `format_id` for itag
-					qualityLabel: format.format_note || "Audio only", // Use `format_note` for quality label
-					container: format.ext, // Container format (e.g., mp4, webm)
-					size: format.filesize
-						? (format.filesize / (1024 * 1024)).toFixed(2) + " MB" // Convert filesize to MB
+					itag: format.itag,
+					qualityLabel: format.qualityLabel || "Audio only",
+					container: format.container || "unknown",
+					size: format.contentLength
+						? (parseInt(format.contentLength) / (1024 * 1024)).toFixed(2) +
+						  " MB" // Convert filesize to MB
 						: "N/A",
-					type: hasVideo ? "video" : "audio", // Determine if it's video or audio
-					is60fps, // Include FPS support information
-					url: format.url, // Include the download URL
+					type: hasVideo ? "video" : "audio",
+					is60fps,
+					url: format.url,
+					vcodec: format.videoCodec || "none",
+					acodec: format.audioCodec || "none",
 				};
 			})
 			.filter(
@@ -55,10 +78,11 @@ export async function POST(request: Request) {
 
 		// Respond with the video title, thumbnail, and filtered formats
 		return NextResponse.json({
-			title: info.title, // Include the video title
-			thumbnail: info.thumbnail, // Include the video thumbnail URL
-			duration: formatDuration(info.duration),
+			title: info.videoDetails.title,
+			thumbnail: info.videoDetails.thumbnails[0]?.url || "",
+			// duration: formatDuration(info.videoDetails.lengthSeconds),
 			formats,
+			info,
 		});
 	} catch (error) {
 		console.error("Error fetching video info:", error);
