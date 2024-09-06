@@ -5,6 +5,7 @@ export interface Format {
 	size: string;
 	quality?: string;
 	url: string;
+	hasAudio?: boolean;
 }
 
 export interface VideoData {

@@ -1,66 +1,60 @@
 "use client";
 import React, { useState } from "react";
 import axios from "axios";
-import { VideoCard, VideoData } from "./FormatSelector";
+import { VideoCard, VideoData } from "./FormatSelector"; // Ensure FormatSelector exports VideoCard correctly
 
 const YouTubeDownloader: React.FC = () => {
 	const [url, setUrl] = useState<string>("");
 	const [videoData, setVideoData] = useState<VideoData | null>(null);
 	const [error, setError] = useState<string>("");
+	const [isLoading, setIsLoading] = useState<boolean>(false);
 
 	const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setUrl(e.target.value);
 	};
 
 	const validateUrl = async () => {
+		if (!url.match(/^(https?\:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+$/)) {
+			setError("Please enter a valid YouTube URL.");
+			return;
+		}
+
+		setIsLoading(true);
+		setError("");
 		try {
 			const response = await axios.post("/api/validate-url", { url });
 			const fetchedData = response.data;
 
-			// Transform the fetched data into the VideoData format expected by VideoCard
 			const transformedData: VideoData = {
-				imageSrc: fetchedData.thumbnail, // Assuming thumbnailUrl is returned
+				imageSrc: fetchedData.thumbnail,
 				title: fetchedData.title,
-				tags: fetchedData.tags || "", // Assuming tags are returned or set empty string if not
-				duration: fetchedData.duration || "Unknown", // Assuming duration is returned or set to "Unknown" if not
+				tags: fetchedData.tags || "",
+				duration: fetchedData.duration || "Unknown",
 				audioFormats: fetchedData.formats
-					.filter((format: any) => format.type === "audio")
+					.filter((format: any) => format.hasAudio && !format.hasVideo)
 					.map((format: any) => ({
 						name: format.qualityLabel || "Audio only",
 						size: format.size,
 						url: format.url,
 					})),
 				videoFormats: fetchedData.formats
-					.filter((format: any) => format.type === "video")
+					.filter((format: any) => format.hasVideo)
 					.map((format: any) => ({
 						quality: format.qualityLabel,
 						size: format.size,
 						url: format.url,
+						hasAudio: format.hasAudio,
 					})),
 			};
 
 			setVideoData(transformedData);
-			setError("");
 		} catch (error) {
 			console.error("Error validating URL:", error);
 			setError("Error validating URL. Please check the URL and try again.");
-			setVideoData(null);
+		} finally {
+			setIsLoading(false);
 		}
 	};
-
-	// const handleFormatChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-	// 	const selectedItag = e.target.value;
-	// 	if (videoData) {
-	// 		const selectedFormat = videoData.videoFormats.find(
-	// 			(format) => format.quality === selectedItag
-	// 		);
-	// 		if (selectedFormat) {
-	// 			setDownloadLink(selectedFormat.size); // Assuming `size` contains the download URL; replace with the actual property that contains the URL
-	// 		} else {
-	// 			setDownloadLink("");
-	// 		}
-	// 	}
-	// };
 
 	return (
 		<div className="w-full h-full mx-auto p-0 md:p-6 bg-[#0c0c0c]">
@@ -79,8 +73,9 @@ const YouTubeDownloader: React.FC = () => {
 			<button
 				onClick={validateUrl}
 				className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition duration-200"
+				disabled={isLoading}
 			>
-				Validate URL
+				{isLoading ? "Validating..." : "Validate URL"}
 			</button>
 			{videoData && (
 				<div className="mt-4">
